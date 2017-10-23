@@ -16,6 +16,7 @@ import threading
 MIN_NONCE = (0, 10000, 20000, 30000)
 MAX_NONCE = (9999, 19999, 29999, 39999)
 
+STDOUT_LOCK = mp.Lock()
 
 class HashProc(mp.Process):
 
@@ -28,15 +29,14 @@ class HashProc(mp.Process):
         self.header = bytes(header, 'ascii')
         # instance queues
         self.NONCE_QUEUE = queue.Queue(50000)
-        HashProc.lock = threading.Lock()
         self.fh = open('%s%d.txt' % (header, index), 'w')
         super().__init__()
 
 
     def write(self, digest, nonce):
-        HashProc.lock.acquire()
+        STDOUT_LOCK.acquire()
         sys.stdout.write(f'{nonce},{digest}\n')
-        HashProc.lock.release()
+        STDOUT_LOCK.release()
 
     def getHash(self):
         nonce = self.NONCE_QUEUE.get()
@@ -50,7 +50,7 @@ class HashProc(mp.Process):
     def run(self):
         for nonce in range(MIN_NONCE[self.index], MAX_NONCE[self.index]):
             self.NONCE_QUEUE.put(nonce)
-        while True:
+        while not self.NONCE_QUEUE.empty():
             self.getHash()
 
 
